@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+"""
+Generates config/config.ini with:
+  - the sqlite database path
+  - a PBKDF2 hash of the journal password (never the plaintext password)
+  - a random 64-byte JWT signing secret
+
+Run this once before starting the app for the first time:
+
+    python scripts/generate_config.py
+
+It will refuse to overwrite an existing config.ini unless you pass --force.
+"""
+
+import argparse
+import configparser
+import getpass
+import os
+import secrets
+import stat
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from werkzeug.security import generate_password_hash  # noqa: E402
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONFIG_PATH = PROJECT_ROOT / "config" / "config.ini"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--force", action="store_true", help="overwrite an existing config.ini")
+    parser.add_argument("--db-path", default=str(PROJECT_ROOT / "data" / "journal.db"))
+    parser.add_argument("--jwt-expiry-hours", type=int, default=12)
+    parser.add_argument(
+        "--password",
+        help="journal password (omit this flag to be prompted so it isn't left in shell history)",
+    )
+    args = parser.parse_args()
+
+    if CONFIG_PATH.exists() and not args.force:
+        print(f"'{CONFIG_PATH}' already exists. Re-run with --force to overwrite it.")
+        sys.exit(1)
+
+    password = args.password
+    if not password:
+        password = getpass.getpass("Set the journal login password: ")
+        confirm = getpass.getpass("Confirm password: ")
+        if password != confirm:
+            print("Passwords did not match.")
+            sys.exit(1)
+    if len(password) < 4:
+        print("Choose a password of at least 8 characters.")
+        sys.exit(1)
+
+    password_hash = generate_password_hash(password, method="pbkdf2:sha256")
+    jwt_secret = secrets.token_hex(64)
+
+    cfg = configparser.ConfigParser()
+    cfg["database"] = {"path": args.db_path}
+    cfg["auth"] = {
+        "password_hash": password_hash,
+        "jwt_secret": jwt_secret,
+        "jwt_expiry_hours": str(args.jwt_expiry_hours),
+    }
+
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_PATH, "w") as f:
+        cfg.write(f)
+
+    # Best-effort lock the file down to the owner only.
+    try:
+        os.chmod(CONFIG_PATH, stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        pass
+
+    print(f"Wrote {CONFIG_PATH} (mode 600).")
+    print("Keep this file out of version control — it is already covered by .gitignore.")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,12 @@
+services:
+  fj:
+    build: .
+    image: trjournal:latest
+    ports:
+      - "[::]:20100:5000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    environment:
+      - PORT=5000
+    restart: unless-stopped

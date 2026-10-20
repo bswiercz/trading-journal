@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Small red trading candle and a taller green trading candle">
+  <defs>
+    <linearGradient id="redBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff6866"/>
+      <stop offset="0.43" stop-color="#ff2929"/>
+      <stop offset="1" stop-color="#cf0000"/>
+    </linearGradient>
+    <linearGradient id="greenBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#80ff4f"/>
+      <stop offset="0.45" stop-color="#29ed17"/>
+      <stop offset="1" stop-color="#00ac16"/>
+    </linearGradient>
+    <linearGradient id="redRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#640000"/>
+      <stop offset="1" stop-color="#420000"/>
+    </linearGradient>
+    <linearGradient id="greenRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#004409"/>
+      <stop offset="1" stop-color="#003707"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Thin vertical wicks behind the candle bodies. -->
+  <rect x="143" y="220" width="31" height="229" rx="15.5" fill="#870900" stroke="#290000" stroke-width="2"/>
+  <rect x="359" y="22" width="31" height="436" rx="15.5" fill="#004c0a" stroke="#002b09" stroke-width="2"/>
+
+  <!-- Red candle on the left. -->
+  <rect x="68" y="271" width="179" height="137" rx="23" fill="url(#redRim)" stroke="#260000" stroke-width="2"/>
+  <rect x="88" y="284" width="139" height="110" rx="6" fill="url(#redBody)"/>
+  <path d="M94 284 H221 Q227 284 227 290 V293 H88 V290 Q88 284 94 284Z" fill="#ff9a91" opacity=".47"/>
+
+  <!-- Green candle on the right, over twice the red body's height. -->
+  <rect x="285" y="85" width="179" height="320" rx="23" fill="url(#greenRim)" stroke="#002709" stroke-width="2"/>
+  <rect x="304" y="99" width="139" height="293" rx="6" fill="url(#greenBody)"/>
+  <path d="M310 99 H437 Q443 99 443 105 V109 H304 V105 Q304 99 310 99Z" fill="#bbffa5" opacity=".4"/>
+</svg>

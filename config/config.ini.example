@@ -1,0 +1,16 @@
+; Template only — do not put real secrets here.
+; Generate the real file with:  python scripts/generate_config.py
+; It will write config/config.ini (git-ignored) with a hashed password
+; and a random JWT secret; this .example file is just for reference.
+
+[database]
+path = /app/data/journal.db
+
+[auth]
+; PBKDF2 hash produced by werkzeug.security.generate_password_hash — never
+; a plaintext password.
+password_hash = pbkdf2:sha256:REPLACE_ME
+; Long random value used to sign/verify JWTs.
+jwt_secret = REPLACE_ME
+; How long an issued token stays valid.
+jwt_expiry_hours = 12
