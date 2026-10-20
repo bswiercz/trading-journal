@@ -350,6 +350,43 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
   .form .span2,.form .span4{grid-column:span 1}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.tooltip-icon {position: relative;display: inline-block;cursor: help;user-select: none;
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--slate);font-weight:500;}
+
+
+      .tooltip-icon:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 150%;
+      bottom: 155%;
+      transform: translateX(-50%);
+      background: #1a1a1a;
+      color: #f0f0f0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: normal;
+      white-space: pre-line;
+      width: max-content;
+      max-width: 340px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .tooltip-icon:hover::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 115%;
+      transform: translateX(-50%);
+      border: 7px solid transparent;
+      border-top-color: #1a1a1a;
+      z-index: 100;
+    }
+
 </style>
 </head>
 <body>
@@ -550,7 +587,7 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
     <div class="form">
       <label class="fld"><span class="eyebrow">Date</span><input type="date" id="fldDate"></label>
       <label class="fld"><span class="eyebrow">Time</span><input type="time" id="fldTime"></label>
-      <label class="fld span2"><span class="eyebrow">Asset</span><input type="text" id="fldAsset" list="dlAsset" placeholder="BTCUSD"><datalist id="dlAsset"></datalist></label>
+      <label class="fld span2"><span class="eyebrow">Asset</span><input type="text" id="fldAsset" list="dlAsset" placeholder="NQ" value="NQ"><datalist id="dlAsset"></datalist></label>
 
       <div class="fld span2">
         <div class="eyebrow" id="lblSetup" style="margin-bottom:6px">Setup</div>
@@ -577,7 +614,17 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
         <div><div class="eyebrow">Outcome</div><div class="n" id="cOut">—</div></div>
       </div>
 
-      <label class="fld span4"><span class="eyebrow">Trade thesis / level</span><textarea id="fldThesis" placeholder="Why you took it, which level, what invalidated it…"></textarea></label>
+      <label class="fld span4"><span class="eyebrow">Trade thesis / level</span>
+        <span class="tooltip-icon"
+        data-tooltip="Setup valid per rules? [y/n, list violations]
+Outcome in R; MAE/MFE in R; time in trade
+Process grade (A-F) separate from result grade
+Was the EOF right? Was the playbook classification right and when did it become clear?
+Was a better entry available (start vs EQ)? Would the other entry have been filled?
+One rule to keep, one to test, one to drop">
+    ?
+  </span>
+      <textarea id="fldThesis" placeholder="Why you took it, which level, what invalidated it…"></textarea></label>
 
       <div class="span2">
         <div class="eyebrow" style="margin-bottom:6px">Screenshot — before</div>
