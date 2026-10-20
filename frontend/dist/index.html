@@ -351,11 +351,9 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-.tooltip-icon {position: relative;display: inline-block;cursor: help;user-select: none;
-  font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
-  color:var(--slate);font-weight:500;}
+.tooltip-icon {position: relative;display: inline;cursor: help;user-select: none;font-family:var(--sans);font-size:10px;color:var(--bone);font-weight:500;}
 
-.tooltip-icon:hover::after {content: attr(data-tooltip);position: absolute;left: 150%;bottom: 155%;transform: translateX(-50%);background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:24px;font-size: 10px;font-weight: normal;width: max-content;max-width: 340px;box-shadow: 0 4px 14px rgba(0,0,0,0.25);z-index: 100;pointer-events: none;}
+.tooltip-icon:hover::after {content: attr(data-tooltip);position: absolute;left: 150%;bottom: 155%;transform: translateX(-50%);background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:24px;font-size: 12px;font-weight: normal;width: max-content;max-width: 340px;box-shadow: 0 4px 14px rgba(0,0,0,0.25);z-index: 100;pointer-events: none;white-space: pre-line;}
 
 .tooltip-icon:hover::before {content: "";position: absolute;left: 50%;bottom: 115%;transform: translateX(-50%);border: 7px solid transparent;border-top-color: #1a1a1a;z-index: 100;}
 </style>
@@ -585,16 +583,20 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
         <div><div class="eyebrow">Outcome</div><div class="n" id="cOut">—</div></div>
       </div>
 
-      <label class="fld span4"><span class="eyebrow">Trade thesis / level</span>
-        <span class="tooltip-icon"
-        data-tooltip="Setup valid per rules? [y/n, list violations]
-Outcome in R; MAE/MFE in R; time in trade
+      <label class="fld span4">
+        <div style="display:flex">
+          <span class="eyebrow">Trade thesis / level</span>
+          <span class="tooltip-icon" data-tooltip="Setup valid per rules? [y/n, list violations]
+Outcome in R
+MAE/MFE in R
+Time in trade
 Process grade (A-F) separate from result grade
-Was the EOF right? Was the playbook classification right and when did it become clear?
-Was a better entry available (start vs EQ)? Would the other entry have been filled?
-One rule to keep, one to test, one to drop">
-    ?
-  </span>
+Was the EOF right?
+Was the playbook classification right and when did it become clear?
+Was a better entry available (start vs EQ)?
+Would the other entry have been filled?
+One rule to keep, one to test, one to drop">?</span>
+        </div>
       <textarea id="fldThesis" placeholder="Why you took it, which level, what invalidated it…"></textarea></label>
 
       <div class="span2">
