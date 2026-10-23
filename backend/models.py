@@ -17,7 +17,15 @@ from backend.db import get_db
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[\w./+-]+);base64,(?P<b64>.+)$", re.DOTALL)
 
 TRADE_FIELDS = ["date", "time", "asset", "setup", "confluences",
-                 "entry", "stop", "exit", "risk", "session", "thesis"]
+                 "entry", "stop", "exit", "risk", "session", "thesis", "filled"]
+
+_INSERT_SQL = """INSERT INTO trades
+   (date, time, asset, setup, confluences, entry, stop, exit, risk,
+    session, thesis, filled, shot_before, shot_before_mime, shot_after, shot_after_mime,
+    updated_at)
+   VALUES (:date, :time, :asset, :setup, :confluences, :entry, :stop, :exit, :risk,
+           :session, :thesis, :filled, :shot_before, :shot_before_mime, :shot_after, :shot_after_mime,
+           strftime('%Y-%m-%dT%H:%M:%fZ','now'))"""
 
 
 class ValidationError(ValueError):
@@ -58,6 +66,7 @@ def row_to_dict(row: sqlite3.Row, include_images: bool = True) -> dict:
         "risk": row["risk"],
         "session": row["session"] or "",
         "thesis": row["thesis"] or "",
+        "filled": bool(row["filled"]),
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
         "hasShotBefore": bool(row["shot_before"]),
@@ -79,6 +88,8 @@ def _validate_payload(data: dict, partial: bool = False):
             v = data.get(f)
             if not isinstance(v, (int, float)):
                 errors.append(f"{f} must be a number")
+    if "filled" in data and not isinstance(data["filled"], bool):
+        errors.append("filled must be true or false")
     if errors:
         raise ValidationError("; ".join(errors))
 
@@ -98,6 +109,8 @@ def _payload_to_row_kwargs(data: dict) -> dict:
         "risk": float(data.get("risk") or 0),
         "session": (data.get("session") or "").strip(),
         "thesis": (data.get("thesis") or "").strip(),
+        # Omitted means filled, so older clients and imports keep working.
+        "filled": 1 if data.get("filled", True) else 0,
         "shot_before": shot_before,
         "shot_before_mime": shot_before_mime,
         "shot_after": shot_after,
@@ -105,9 +118,15 @@ def _payload_to_row_kwargs(data: dict) -> dict:
     }
 
 
-def list_trades() -> list[dict]:
+def list_trades(filled: bool | None = None) -> list[dict]:
+    """All trades, oldest first. Pass `filled` to return only filled / unfilled trades."""
     db = get_db()
-    rows = db.execute("SELECT * FROM trades ORDER BY date ASC, time ASC, id ASC").fetchall()
+    sql = "SELECT * FROM trades"
+    params: tuple = ()
+    if filled is not None:
+        sql += " WHERE filled = ?"
+        params = (1 if filled else 0,)
+    rows = db.execute(sql + " ORDER BY date ASC, time ASC, id ASC", params).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
@@ -121,16 +140,7 @@ def create_trade(data: dict) -> dict:
     _validate_payload(data)
     kw = _payload_to_row_kwargs(data)
     db = get_db()
-    cur = db.execute(
-        """INSERT INTO trades
-           (date, time, asset, setup, confluences, entry, stop, exit, risk,
-            session, thesis, shot_before, shot_before_mime, shot_after, shot_after_mime,
-            updated_at)
-           VALUES (:date, :time, :asset, :setup, :confluences, :entry, :stop, :exit, :risk,
-                   :session, :thesis, :shot_before, :shot_before_mime, :shot_after, :shot_after_mime,
-                   strftime('%Y-%m-%dT%H:%M:%fZ','now'))""",
-        kw,
-    )
+    cur = db.execute(_INSERT_SQL, kw)
     db.commit()
     return get_trade(cur.lastrowid)
 
@@ -142,16 +152,7 @@ def bulk_create_trades(items: list[dict]) -> list[dict]:
         for data in items:
             _validate_payload(data)
             kw = _payload_to_row_kwargs(data)
-            cur = db.execute(
-                """INSERT INTO trades
-                   (date, time, asset, setup, confluences, entry, stop, exit, risk,
-                    session, thesis, shot_before, shot_before_mime, shot_after, shot_after_mime,
-                    updated_at)
-                   VALUES (:date, :time, :asset, :setup, :confluences, :entry, :stop, :exit, :risk,
-                           :session, :thesis, :shot_before, :shot_before_mime, :shot_after, :shot_after_mime,
-                           strftime('%Y-%m-%dT%H:%M:%fZ','now'))""",
-                kw,
-            )
+            cur = db.execute(_INSERT_SQL, kw)
             created_ids.append(cur.lastrowid)
         db.commit()
     except Exception:
@@ -162,16 +163,19 @@ def bulk_create_trades(items: list[dict]) -> list[dict]:
 
 def update_trade(trade_id: int, data: dict) -> dict | None:
     db = get_db()
-    existing = db.execute("SELECT id FROM trades WHERE id = ?", (trade_id,)).fetchone()
+    existing = db.execute("SELECT id, filled FROM trades WHERE id = ?", (trade_id,)).fetchone()
     if not existing:
         return None
     _validate_payload(data)
     kw = _payload_to_row_kwargs(data)
+    if "filled" not in data:
+        kw["filled"] = existing["filled"]   # an update that omits the flag must not reset it
     kw["id"] = trade_id
     db.execute(
         """UPDATE trades SET
              date=:date, time=:time, asset=:asset, setup=:setup, confluences=:confluences,
              entry=:entry, stop=:stop, exit=:exit, risk=:risk, session=:session, thesis=:thesis,
+             filled=:filled,
              shot_before=:shot_before, shot_before_mime=:shot_before_mime,
              shot_after=:shot_after, shot_after_mime=:shot_after_mime,
              updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')

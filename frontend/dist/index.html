@@ -251,6 +251,16 @@ tbody tr:hover td{background:rgba(142,78,198,.05)}
 .dt .tm{margin-left:8px;opacity:.72}
 .rowbtn{background:none;border:0;color:var(--slate-dim);cursor:pointer;padding:2px 5px;font-size:13px;line-height:1}
 .rowbtn:hover{color:var(--bone)}
+.editbtn{
+  display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;
+  font-size:17px;line-height:1;color:var(--slate);background:var(--panel-2);
+  border:1px solid var(--rule);border-radius:7px;cursor:pointer;
+  transition:color .12s,border-color .12s,background .12s;
+}
+.editbtn:hover{color:var(--bone);border-color:var(--orchid);background:var(--haze)}
+.editbtn:focus-visible{outline:2px solid var(--orchid-lite);outline-offset:2px}
+#tbody tr:not(.detail){cursor:pointer}
+#tbody tr:not(.detail):focus-visible{outline:2px solid var(--orchid-lite);outline-offset:-2px}
 tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(--rule)}
 .detbox{display:grid;grid-template-columns:1fr auto;gap:20px;padding:6px 0 10px}
 .detbox .thesis{font-size:13px;line-height:1.65;color:#c9c7d6;max-width:70ch}
@@ -281,6 +291,16 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
 .chip:hover{opacity:.8}
 .chip[aria-pressed=true]{opacity:1;background:rgba(var(--c),.26);border-color:rgba(var(--c),.85)}
 .tag.plain.chip[aria-pressed=true]{color:var(--bone)}
+.switch{position:relative;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .track{position:relative;flex:none;width:34px;height:20px;border-radius:999px;background:var(--ink);border:1px solid var(--rule);transition:background .15s,border-color .15s}
+.switch .knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--slate);transition:transform .15s,background .15s}
+.switch input:checked + .track{background:rgba(142,78,198,.28);border-color:var(--orchid)}
+.switch input:checked + .track .knob{transform:translateX(14px);background:var(--bone)}
+.switch input:focus-visible + .track{outline:2px solid var(--orchid-lite);outline-offset:2px}
+.switch .hint{font-size:11px;color:var(--slate-dim)}
+tr.unfilled > td{opacity:.5}
+tr.unfilled > td:last-child{opacity:1}
 .calc{
   grid-column:span 4;display:flex;gap:26px;flex-wrap:wrap;padding:13px 15px;
   background:var(--ink);border:1px solid var(--rule-soft);border-radius:8px;
@@ -576,6 +596,13 @@ tr.detail td{white-space:normal;background:#0d0f19;border-bottom:1px solid var(-
       <label class="fld span2"><span class="eyebrow">Weekday</span><input type="text" id="fldWeekday" readonly placeholder="From date"></label>
       <label class="fld"><span class="eyebrow">Direction</span><input type="text" id="fldDir" readonly placeholder="From entry & stop"></label>
 
+      <label class="switch span4" for="fldFilled">
+        <input type="checkbox" id="fldFilled" role="switch" checked>
+        <span class="track"><span class="knob"></span></span>
+        <span class="eyebrow">Filled</span>
+        <span class="hint">Unfilled trades are saved, but excluded from all statistics</span>
+      </label>
+
       <div class="calc">
         <div><div class="eyebrow">R multiple</div><div class="n" id="cR">—</div></div>
         <div><div class="eyebrow">P/L</div><div class="n" id="cPnl">—</div></div>
@@ -769,7 +796,8 @@ function derive(t){
   const time = t.time || "";
   const confluences = Array.isArray(t.confluences) ? t.confluences : [];
   const dt = (t.date || "") + " " + (time || "00:00");     // sortable date + time
-  return { ...t, direction, R, pnl, outcome, weekday, stopDist: Math.abs(dist), time, confluences, dt };
+  const filled = t.filled !== false;     // missing/undefined counts as filled
+  return { ...t, filled, direction, R, pnl, outcome, weekday, stopDist: Math.abs(dist), time, confluences, dt };
 }
 const all = () => trades.map(derive).filter(t => t.R !== null);
 
@@ -780,7 +808,8 @@ function periodStart(){
   if (v === "month") return new Date(now.getFullYear(), now.getMonth(), 1);
   const d = new Date(now); d.setDate(d.getDate() - (+v)); return d;
 }
-function filtered(){
+/* Every trade matching the current filters, filled or not. Used by the log table. */
+function filteredAll(){
   const ps = periodStart();
   const fa = $("#fAsset").value, fs = $("#fSetup").value, fss = $("#fSession").value, fd = $("#fDir").value;
   const q = ($("#qSearch").value || "").trim().toLowerCase();
@@ -794,6 +823,9 @@ function filtered(){
     return true;
   }).sort((a,b) => (a.dt < b.dt ? -1 : a.dt > b.dt ? 1 : 0));
 }
+/* Filtered trades that were actually filled. Everything statistical (KPIs, equity
+   curve, monthly chart, calendar, breakdowns) is computed from this list only. */
+const filtered = () => filteredAll().filter(t => t.filled);
 
 /* ============================================================
    Formatting
@@ -877,7 +909,8 @@ function renderKPIs(list){
   setNum($("#sWorst"), m.n ? fmtVal(m.worst) : "—", m.worst);
   $("#sStreakW").textContent = m.n ? m.streakW + " W" : "—"; $("#sStreakW").className = "n num pos";
   $("#sStreakL").textContent = m.n ? m.streakL + " L" : "—"; $("#sStreakL").className = "n num neg";
-  $("#brandCount").textContent = trades.length + (trades.length === 1 ? " trade" : " trades");
+  const nFilled = trades.filter(t => t.filled !== false).length;
+  $("#brandCount").textContent = nFilled + (nFilled === 1 ? " trade" : " trades");
 }
 
 /* ============================================================
@@ -1286,9 +1319,12 @@ function renderTable(list){
   for (const t of sorted){
     const tr = document.createElement("tr");
     tr.dataset.date = t.date;
+    if (!t.filled) tr.classList.add("unfilled");
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-expanded", "false");
     tr.innerHTML =
       `<td class="num dt">${esc(t.date)}${t.time ? `<span class="tm">${esc(t.time)}</span>` : ""}</td>
-       <td><span class="tag plain">${esc(t.asset||"—")}</span></td>
+       <td><span class="tag plain">${esc(t.asset||"—")}</span>${t.filled ? "" : ` <span class="tag dir-short" title="Not filled: excluded from statistics">Unfilled</span>`}</td>
        <td>${t.setup ? tagHtml(t.setup, SETUPS) : dash}</td>
        <td>${t.confluences.length ? `<span class="tags">${t.confluences.map(c => tagHtml(c, CONFS)).join("")}</span>` : dash}</td>
        <td><span class="tag ${t.direction==="Short"?"dir-short":""}">${esc(t.direction||"—")}</span></td>
@@ -1298,15 +1334,14 @@ function renderTable(list){
        <td class="r num" style="color:var(--slate)">${t.risk?cashPlain(t.risk):"—"}</td>
        <td class="r num ${cls(t.R)}" style="font-weight:600">${rf(t.R)}</td>
        <td class="r num ${cls(t.pnl)}">${cash(t.pnl)}</td>
-       <td class="r"><button class="rowbtn" data-act="expand" title="Details">⌄</button>
-                     <button class="rowbtn" data-act="edit" title="Edit">✎</button></td>`;
+       <td class="r"><button class="editbtn" data-act="edit" title="Edit trade" aria-label="Edit trade">✎</button></td>`;
     tb.appendChild(tr);
 
     tr.querySelector('[data-act="edit"]').addEventListener("click", () => openModal(t.id));
-    tr.querySelector('[data-act="expand"]').addEventListener("click", e => {
+    const toggleDetail = () => {
       const nx = tr.nextElementSibling;
-      if (nx && nx.classList.contains("detail")){ nx.remove(); e.target.textContent = "⌄"; return; }
-      e.target.textContent = "⌃";
+      if (nx && nx.classList.contains("detail")){ nx.remove(); tr.setAttribute("aria-expanded", "false"); return; }
+      tr.setAttribute("aria-expanded", "true");
       const d = document.createElement("tr"); d.className = "detail";
       const td = document.createElement("td"); td.colSpan = 12;
       const shots = [["before", t.shotBefore], ["after", t.shotAfter]].filter(s => s[1]);
@@ -1319,6 +1354,17 @@ function renderTable(list){
       td.querySelectorAll("img").forEach(img => img.addEventListener("click", () => {
         const lb = $("#lightbox"); lb.querySelector("img").src = img.src; lb.classList.add("on");
       }));
+    };
+    // The whole row toggles its detail panel. Buttons keep their own action, and
+    // finishing a text selection inside the row doesn't count as a click.
+    tr.addEventListener("click", e => {
+      if (e.target.closest("button")) return;
+      if (String(window.getSelection()).trim()) return;
+      toggleDetail();
+    });
+    tr.addEventListener("keydown", e => {
+      if (e.target !== tr || (e.key !== "Enter" && e.key !== " ")) return;
+      e.preventDefault(); toggleDetail();
     });
   }
 }
@@ -1328,7 +1374,7 @@ $$("th[data-sort]").forEach(th => {
   const go = () => {
     const k = th.dataset.sort;
     if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = (k === "date") ? -1 : -1; }
-    renderTable(filtered());
+    renderTable(filteredAll());
   };
   th.addEventListener("click", go);
   th.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); go(); } });
@@ -1366,10 +1412,10 @@ function render(){
   renderBars("#bAsset",   list, t => t.asset);
   renderBars("#bSession", list, t => t.session);
   renderBars("#bWeekday", list, t => t.weekday, ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]);
-  renderTable(list);
+  renderTable(filteredAll());
 }
 ["#fPeriod","#fAsset","#fSetup","#fSession","#fDir"].forEach(s => $(s).addEventListener("change", render));
-$("#qSearch").addEventListener("input", () => renderTable(filtered()));
+$("#qSearch").addEventListener("input", () => renderTable(filteredAll()));
 $("#btnReset").addEventListener("click", () => {
   $("#fPeriod").value = "all"; ["#fAsset","#fSetup","#fSession","#fDir"].forEach(s => $(s).value = "");
   $("#qSearch").value = ""; render();
@@ -1408,6 +1454,7 @@ function openModal(id){
   $("#fldRisk").value  = t ? t.risk  : (trades.length ? trades[trades.length-1].risk : "");
   $("#fldSession").value = t ? t.session : "";
   $("#fldThesis").value  = t ? (t.thesis||"") : "";
+  $("#fldFilled").checked = t ? t.filled !== false : true;
   shotBefore = t ? (t.shotBefore || null) : null;
   shotAfter  = t ? (t.shotAfter  || null) : null;
   paintDrop("#dropBefore", shotBefore);
@@ -1485,6 +1532,7 @@ async function saveTrade(){
     risk:  parseFloat($("#fldRisk").value) || 0,
     session: $("#fldSession").value.trim(),
     thesis: $("#fldThesis").value.trim(),
+    filled: $("#fldFilled").checked,
     shotBefore, shotAfter
   };
   if (!rec.date) return toast("Add a date");
@@ -1601,7 +1649,8 @@ $("#fileImport").addEventListener("change", e => {
             asset: g("Asset"), setup: canon(g("Setup"), SETUPS), confluences: splitConf(g("Confluences")),
             entry: parseFloat(g("Entry")), stop: parseFloat(g("Stop")), exit: parseFloat(g("Exit")),
             risk: parseFloat(g("Risk")) || 0, session: g("Session"),
-            thesis: g("Trade thesis/level") || g("Thesis") || "", shotBefore:null, shotAfter:null
+            thesis: g("Trade thesis/level") || g("Thesis") || "",
+            filled: parseFilled(g("Filled")), shotBefore:null, shotAfter:null
           };
           if (rec.date && [rec.entry,rec.stop,rec.exit].every(isFinite)) incoming.push(rec);
         }
@@ -1615,6 +1664,8 @@ $("#fileImport").addEventListener("change", e => {
   };
   rd.readAsText(f);
 });
+// CSV "Filled" column: blank or anything unrecognised means filled
+function parseFilled(v){ return !/^(0|false|no|n|unfilled)$/i.test(String(v || "").trim()); }
 function normTime(s){
   const m = String(s || "").match(/(\d{1,2}):(\d{2})/);
   return m ? m[1].padStart(2,"0") + ":" + m[2] : "";

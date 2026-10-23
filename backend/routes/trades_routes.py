@@ -6,10 +6,20 @@ from backend import models
 bp = Blueprint("trades", __name__, url_prefix="/api/trades")
 
 
+_BOOL_STRINGS = {"true": True, "1": True, "false": False, "0": False}
+
+
 @bp.get("")
 @jwt_required
 def list_trades():
-    return jsonify(models.list_trades())
+    """Optional `?filled=true|false` narrows the list; omitted returns every trade."""
+    raw = request.args.get("filled")
+    filled = None
+    if raw is not None:
+        filled = _BOOL_STRINGS.get(raw.strip().lower())
+        if filled is None:
+            return jsonify(error="filled must be true or false"), 400
+    return jsonify(models.list_trades(filled=filled))
 
 
 @bp.post("")

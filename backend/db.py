@@ -34,6 +34,22 @@ def close_db(_exc=None):
         db.close()
 
 
+def _migrate(db: sqlite3.Connection) -> None:
+    """Bring databases created by older versions up to the current schema.
+
+    `CREATE TABLE IF NOT EXISTS` never alters an existing table, so columns
+    added after the first release have to be added here. Each step is
+    idempotent.
+    """
+    columns = {row["name"] for row in db.execute("PRAGMA table_info(trades)")}
+    if "filled" not in columns:
+        # Existing trades were all real, executed trades, hence DEFAULT 1.
+        db.execute(
+            "ALTER TABLE trades ADD COLUMN filled INTEGER NOT NULL DEFAULT 1 "
+            "CHECK (filled IN (0, 1))"
+        )
+
+
 def init_db(app):
     """Create tables if they don't exist yet. Called once at app startup."""
     schema_path = Path(__file__).parent / "schema.sql"
@@ -41,6 +57,7 @@ def init_db(app):
         db = _connect(app.config["DB_PATH"])
         with open(schema_path, "r") as f:
             db.executescript(f.read())
+        _migrate(db)
         db.commit()
         db.close()
 

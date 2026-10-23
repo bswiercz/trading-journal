@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS trades (
     risk            REAL NOT NULL DEFAULT 0,
     session         TEXT NOT NULL DEFAULT '',
     thesis          TEXT NOT NULL DEFAULT '',
+    filled          INTEGER NOT NULL DEFAULT 1 CHECK (filled IN (0, 1)),  -- 0 = order never filled; excluded from statistics
     shot_before     BLOB,                   -- raw image bytes
     shot_before_mime TEXT,
     shot_after      BLOB,
